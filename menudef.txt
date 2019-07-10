@@ -1,0 +1,18 @@
+AddOptionMenu "OptionsMenu"
+{
+	StaticText ""
+	StaticText "SpriteShadow v1.9"
+	Submenu "$OPTMNU_SPRITESHADOW", "SpriteShadowMenu"
+}
+
+OptionMenu "SpriteShadowMenu"
+{
+	Class "SpriteShadowMenu"
+	Title "$SPRITESHADOWMNU_TITLE"
+	Position -32
+
+	StaticText ""
+
+	SpriteShadowSlider "$SPRITESHADOWMNU_MAXSHADOWDISTANCE",	"$SPRITESHADOWMNU_HELPTEXT_MAXSHADOWDISTANCE",	"cl_spriteshadowdistance",	0, 10000, 1, 0
+	//SpriteShadowSlider "$SPRITESHADOWMNU_MAXSHADOWS",			"$SPRITESHADOWMNU_HELPTEXT_MAXSHADOWS",			"cl_maxspriteshadows",		0, 1000, 1, 0
+}

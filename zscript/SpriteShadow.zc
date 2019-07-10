@@ -1,0 +1,456 @@
+// Copyright 2017-2019 Nash Muhandes
+// All rights reserved.
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions
+// are met:
+//
+// 1. Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
+// 2. Redistributions in binary form must reproduce the above copyright
+//    notice, this list of conditions and the following disclaimer in the
+//    documentation and/or other materials provided with the distribution.
+// 3. The name of the author may not be used to endorse or promote products
+//    derived from this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+// IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+// IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+// NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+// THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+//===========================================================================
+//
+// SpriteShadow
+//
+// Duke3D-style Actor Shadows
+//
+// Written by Nash Muhandes
+//
+// Feel free to use this in your mods. No need to ask for my permission!
+//
+//===========================================================================
+
+class Z_SpriteShadow : Actor
+{
+	Default
+	{
+		RenderStyle "Stencil";
+		StencilColor "Black";
+		FloatBobPhase 0;
+		+NOBLOCKMAP
+		+NOINTERACTION
+		+NOTONAUTOMAP
+	}
+
+	Actor caster;
+	Inventory casterHasShadow;
+	bool bStopTicking;
+
+	transient CVar cvShadowDistance;
+	double shadowDist;
+
+	//===========================================================================
+	//
+	//
+	//
+	//
+	//===========================================================================
+
+	void UpdateShadowDistance(void)
+	{
+		if (!cvShadowDistance) return;
+		shadowDist = cvShadowDistance.GetFloat();
+	}
+
+	//===========================================================================
+	//
+	//
+	//
+	//
+	//===========================================================================
+
+	override void PostBeginPlay(void)
+	{
+		cvShadowDistance = CVar.FindCVar("cl_spriteshadowdistance");
+		UpdateShadowDistance();
+		Super.PostBeginPlay();
+	}
+
+	override void Tick(void)
+	{
+		if (!bNoTimeFreeze && (isFrozen() || Level.isFrozen())) return;
+
+		if (!bStopTicking)
+		{
+			Super.Tick();
+			bStopTicking = true;
+			return;
+		}
+		//else if (caster && caster.CheckIfSeen())
+		else if (caster && caster.CheckSightOrRange(shadowDist, true))
+		{
+			return;
+		}
+		else
+		{
+
+			if (caster)
+			{
+				casterHasShadow = caster.FindInventory("Z_ShadeMe");
+
+				// filter your own shadow and hide it from your first person view
+				if (caster is "PlayerPawn" && players[consoleplayer].mo == caster)
+				{
+					if (players[consoleplayer].camera == players[consoleplayer].mo && !(caster.player.cheats & CF_CHASECAM))
+					{
+						bInvisible = true;
+					}
+					else
+					{
+						bInvisible = false;
+					}
+				}
+				else
+				{
+					if (players[consoleplayer].camera.CheckLocalView(consoleplayer))
+					{
+						// hide shadow if you are under the monster
+						if (players[consoleplayer].camera.Pos.Z
+							+ (players[consoleplayer].camera.player ?
+								players[consoleplayer].camera.player.viewheight
+								: players[consoleplayer].camera.GetCameraHeight())
+							< Pos.Z)
+							bInvisible = true;
+
+						// always visible for monsters
+						else bInvisible = false;
+					}
+					else
+					{
+						return;
+					}
+				}
+
+				// sync size of bounding box
+				if (Radius != caster.Radius || Height != caster.Height)
+				{
+					A_SetSize(caster.Radius, caster.Height);
+				}
+
+				// sync sprites and angle
+				Sprite = caster.Sprite;
+				Frame = caster.Frame;
+				Angle = caster.Angle;
+
+				// sync alpha
+				Alpha = caster.Alpha * 0.5;
+
+				// sync scale
+				Scale.X = caster.Scale.X;
+				Scale.Y = caster.Scale.Y * 0.1;
+
+				// sync position (offset shadow away from local camera)
+				if (!players[consoleplayer].camera) return;
+				Vector3 sPos = (
+					caster.Pos.X + cos(players[consoleplayer].camera.Angle) * 0.01,
+					caster.Pos.Y + sin(players[consoleplayer].camera.Angle) * 0.01,
+					caster.FloorZ
+					);
+				SetOrigin(sPos, true);
+
+				return;
+			}
+			else if (!caster || (caster && !casterHasShadow))
+			{
+				// clean-up
+				Destroy();
+				return;
+			}
+		}
+	}
+}
+
+//===========================================================================
+//
+//
+//
+//
+//===========================================================================
+
+class Z_ShadeMe : CustomInventory
+{
+	Default
+	{
+		FloatBobPhase 0;
+		Inventory.MaxAmount 1;
+		+INVENTORY.UNDROPPABLE
+		+INVENTORY.UNTOSSABLE
+		+INVENTORY.AUTOACTIVATE
+	}
+
+	Z_SpriteShadow myShadow;
+
+	//===========================================================================
+	//
+	//
+	//
+	//
+	//===========================================================================
+
+	override void Tick(void)
+	{
+		if (!Owner) return;
+
+		if (!myShadow)
+		{
+			// spawn the shadow
+			let mo = Z_SpriteShadow(Spawn("Z_SpriteShadow", Owner.Pos, NO_REPLACE));
+			if (mo)
+			{
+				myShadow = mo;
+				mo.caster = Owner;
+			}
+		}
+	}
+
+	//===========================================================================
+	//
+	//
+	//
+	//
+	//===========================================================================
+
+	States
+	{
+	Use:
+		TNT1 A 0;
+		Fail;
+	Pickup:
+		TNT1 A 0
+		{
+			return true;
+		}
+		Stop;
+	}
+}
+
+//===========================================================================
+//
+//
+//
+//
+//===========================================================================
+
+class SpriteShadowHandler : EventHandler
+{
+	transient CVar cvShadowDistance;
+	transient CVar cvMaxShadows;
+
+	double shadowDistOld, shadowDistNew;
+
+	bool savedGame;
+	int savedGameDuration;
+
+	//===========================================================================
+	//
+	//
+	// Player-specific stuff
+	//
+	//===========================================================================
+
+	void DoSpawnPlayerShadow(PlayerPawn pmo)
+	{
+		if (pmo) pmo.A_GiveInventory("Z_ShadeMe", 1);
+	}
+
+	void DoRemovePlayerShadow(PlayerPawn pmo)
+	{
+		if (pmo)
+		{
+			let shadeMe = Z_ShadeMe(pmo.FindInventory("Z_ShadeMe"));
+			if (shadeMe) shadeMe.Destroy();
+		}
+	}
+
+	void SpawnPlayerShadows(void)
+	{
+		for (int i = 0; i < MAXPLAYERS; i++)
+		{
+			let pmo = players[i].mo;
+			if (pmo && PlayerInGame[i])
+			{
+				DoSpawnPlayerShadow(pmo);
+			}
+		}
+	}
+
+	override void PlayerEntered(PlayerEvent e)
+	{
+		let pmo = players[e.PlayerNumber].mo;
+		if (pmo) DoSpawnPlayerShadow(pmo);
+	}
+
+	override void PlayerRespawned(PlayerEvent e)
+	{
+		let pmo = players[e.PlayerNumber].mo;
+		if (pmo) DoSpawnPlayerShadow(pmo);
+	}
+
+	override void PlayerDied(PlayerEvent e)
+	{
+		let pmo = players[e.PlayerNumber].mo;
+		if (pmo) DoRemovePlayerShadow(pmo);
+	}
+
+	override void WorldUnloaded(WorldEvent e)
+	{
+		// player is leaving this level, so mark their shadows for destruction
+		for (int i = 0; i < MAXPLAYERS; i++)
+		{
+			let pmo = players[i].mo;
+			if (pmo && PlayerInGame[i])
+			{
+				// find the shadow and destroy it
+				let shadeMe = Z_ShadeMe(pmo.FindInventory("Z_ShadeMe"));
+
+				if (shadeMe && shadeMe.myShadow)
+				{
+					shadeMe.myShadow.Destroy();
+				}
+
+				DoRemovePlayerShadow(pmo);
+			}
+		}
+	}
+
+	//===========================================================================
+	//
+	//
+	//
+	//
+	//===========================================================================
+
+	override void WorldTick(void)
+	{
+		if (!cvShadowDistance) cvShadowDistance = CVar.FindCVar("cl_spriteshadowdistance");
+		if (!cvMaxShadows) cvMaxShadows = CVar.FindCVar("cl_maxspriteshadows");
+
+		PlayerInfo p = players[consoleplayer];
+		if (!p) return;
+
+		double shadowDist = GetShadowDistance();
+
+		// update shadow distance
+		shadowDistNew = shadowDist;
+		if (shadowDistOld != shadowDistNew)
+		{
+			ThinkerIterator it = ThinkerIterator.Create("Z_SpriteShadow");
+			Z_SpriteShadow shadow;
+			while (shadow = Z_SpriteShadow(it.Next()))
+			{
+				shadow.UpdateShadowDistance();
+			}
+			shadowDistOld = shadowDistNew;
+		}
+
+		// look for shadow casters around you
+		BlockThingsIterator it = BlockThingsIterator.Create(p.mo, shadowDist);
+		while (it.Next())
+		{
+			Actor mo = it.thing;
+
+			if (!mo.bIsMonster)
+			{
+				continue;
+			}
+			else
+			{
+				// too far, destroy the shadow
+				if (mo.Distance2DSquared(p.mo) >= shadowDist ** 2)
+				{
+					let shadeMe = Z_ShadeMe(mo.FindInventory("Z_ShadeMe"));
+					if (shadeMe && shadeMe.myShadow)
+					{
+						shadeMe.myShadow.Destroy();
+						shadeMe.Destroy();
+						continue;
+					}
+				}
+				else
+				{
+					let shadeMe = Z_ShadeMe(mo.FindInventory("Z_ShadeMe"));
+					if (!shadeMe && mo.CheckSight(p.mo))
+					{
+						mo.A_GiveInventory("Z_ShadeMe", 1);
+						continue;
+					}
+				}
+			}
+		}
+
+		// do not serialize shadows
+		if (gameaction == ga_savegame || gameaction == ga_autosave)
+		{
+			ThinkerIterator it = ThinkerIterator.Create("Z_ShadeMe");
+			Z_ShadeMe shadeMe;
+			while (shadeMe = Z_ShadeMe(it.Next()))
+			{
+				shadeMe.myShadow.Destroy();
+				shadeMe.Destroy();
+			}
+
+			savedGame = true;
+			savedGameDuration = 2;
+		}
+
+		// add player shadows back after save is complete
+		// (wait a few tics before doing so so that Z_ShadeMe doesn't get serialized accidentally)
+		if (savedGame)
+		{
+			if (savedGameDuration > 0)
+			{
+				savedGameDuration--;
+			}
+
+			if (savedGameDuration == 0)
+			{
+				SpawnPlayerShadows();
+				savedGame = false;
+			}
+		}
+	}
+
+	//===========================================================================
+	//
+	//
+	//
+	//
+	//===========================================================================
+
+	double GetShadowDistance(void)
+	{
+		if (!cvShadowDistance) return 0;
+		return cvShadowDistance.GetFloat();
+	}
+
+	int CountShadows(void)
+	{
+		if (!cvMaxShadows) return 0;
+
+		ThinkerIterator it = ThinkerIterator.Create("Z_SpriteShadow");
+		Z_SpriteShadow mo;
+		int count;
+		while (mo = Z_SpriteShadow(it.Next()))
+		{
+			count++;
+			if (count >= cvMaxShadows.GetInt()) break;
+		}
+		return count;
+	}
+}
