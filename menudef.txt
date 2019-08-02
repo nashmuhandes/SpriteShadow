@@ -12,7 +12,7 @@ OptionMenu "SpriteShadowMenu"
 	Position -32
 
 	StaticText ""
-
+	Option "Enabled", "cl_spriteshadowenabled", YesNo
 	SpriteShadowSlider "$SPRITESHADOWMNU_MAXSHADOWDISTANCE",	"$SPRITESHADOWMNU_HELPTEXT_MAXSHADOWDISTANCE",	"cl_spriteshadowdistance",	0, 10000, 1, 0
 	//SpriteShadowSlider "$SPRITESHADOWMNU_MAXSHADOWS",			"$SPRITESHADOWMNU_HELPTEXT_MAXSHADOWS",			"cl_maxspriteshadows",		0, 1000, 1, 0
 }
