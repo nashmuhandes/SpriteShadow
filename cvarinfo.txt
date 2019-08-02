@@ -1,2 +1,2 @@
 user int cl_spriteshadowdistance = 1500;
-user int cl_maxspriteshadows = 200;
+user bool cl_spriteshadowenabled = true;
