@@ -118,7 +118,7 @@ class Z_SpriteShadow : Actor
 				}
 				else
 				{
-					if (players[consoleplayer].camera.CheckLocalView(consoleplayer))
+					if (players[consoleplayer].camera && players[consoleplayer].camera.CheckLocalView(consoleplayer))
 					{
 						// hide shadow if you are under the monster
 						if (players[consoleplayer].camera.Pos.Z
