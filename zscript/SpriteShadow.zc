@@ -220,8 +220,7 @@ class Z_ShadeMe : CustomInventory
 		if (countFromLastUpdate > maxMonsterShadowAgeInTicks) 
 		{
 			self.SetEnableShadow(false);
-			//OK to self-remove from inventory ?
-			Owner.TakeInventory("Z_ShadeMe", 1);
+			Destroy();
 			return;
 		}
 		
