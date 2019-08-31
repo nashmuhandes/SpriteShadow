@@ -160,8 +160,11 @@ class Z_ShadeMe : CustomInventory
 
 	void SetEnableShadow(bool bEnable) 
 	{
-		countFromLastUpdate = 0;
-
+		if (bEnable)
+		{
+			//reset mark date at enable only.
+			countFromLastUpdate = 0;
+		}
 		if (bEnable != self.shadowCloseEnoughToPlayer) 
 		{
 			if (bEnable) 
@@ -217,6 +220,9 @@ class Z_ShadeMe : CustomInventory
 		if (countFromLastUpdate > maxMonsterShadowAgeInTicks) 
 		{
 			self.SetEnableShadow(false);
+			//OK to self-remove from inventory ?
+			Owner.TakeInventory("Z_ShadeMe", 1);
+			return;
 		}
 		
 		Super.Tick();
@@ -252,17 +258,6 @@ class Z_ShadeMe : CustomInventory
 class SpriteShadowHandler : EventHandler
 {
 	int countTicks;
-
-	// spawn shadows for monsters
-	override void WorldThingSpawned(WorldEvent e)
-	{
-		//Console.PrintF("SpriteShadowHandler::WorldThingSpawned %s ",e.Thing.GetClassName());
-		if (e.Thing.bIsMonster && !e.Thing.CountInv("Z_ShadeMe"))
-		{	
-			//Every monster got a Z_ShadeMe inventory token, but your shadow is effectively enabled or not later. 
-			e.Thing.A_GiveInventory("Z_ShadeMe", 1);   
-		}
-	}
 
 	//===========================================================================
 	//
@@ -368,7 +363,7 @@ class SpriteShadowHandler : EventHandler
 		countTicks++;
 
 		// no need to update this too often
-		if (countTicks % 35 != 0) return;
+		if (countTicks % 15 != 0) return;
 
 		PlayerInfo p = players[consoleplayer];
 		if (!p) return;
@@ -387,16 +382,16 @@ class SpriteShadowHandler : EventHandler
 			{
 				let shadeMe = Z_ShadeMe(mo.FindInventory("Z_ShadeMe"));
 				
+				bool display_shadows = shadows_enabled && (mo.Distance2DSquared(p.mo) < shadowDist ** 2);
+
 				if (shadeMe)
 				{
-					if (shadows_enabled && (mo.Distance2DSquared(p.mo) < shadowDist ** 2)) 
-					{ 
-						shadeMe.SetEnableShadow(true);
-					} 
-					else 
-					{
-						shadeMe.SetEnableShadow(false);
-					}
+					shadeMe.SetEnableShadow(display_shadows);
+				}
+				else if (display_shadows)
+				{
+					//lazy creation of Z_ShadeMe. The shadow itself will self-enable in the next WorldTick calls. 
+					mo.A_GiveInventory("Z_ShadeMe", 1);			
 				}
 			}
 		}//end while.
