@@ -61,7 +61,7 @@ class Z_SpriteShadow : Actor
 			bStopTicking = true;
 			return;
 		}
-		
+
 		if (caster)
 		{
 			// filter your own shadow and hide it from your first person view
@@ -158,18 +158,18 @@ class Z_ShadeMe : CustomInventory
 	int maxMonsterShadowAgeInTicks;
 	bool shadowCloseEnoughToPlayer;
 
-	void SetEnableShadow(bool bEnable) 
+	void SetEnableShadow(bool bEnable)
 	{
 		if (bEnable)
 		{
 			//reset mark date at enable only.
 			countFromLastUpdate = 0;
 		}
-		if (bEnable != self.shadowCloseEnoughToPlayer) 
+		if (bEnable != self.shadowCloseEnoughToPlayer)
 		{
-			if (bEnable) 
+			if (bEnable)
 			{
-				if (!self.myShadow) 
+				if (!self.myShadow)
 				{
 					let sh = Z_SpriteShadow(Spawn("Z_SpriteShadow", Owner.Pos, NO_REPLACE));
 
@@ -180,23 +180,23 @@ class Z_ShadeMe : CustomInventory
 					}
 					//Console.PrintF("+++ Add shadow to %s ",self.GetClassName());
 				}
-			} 
-			else 
+			}
+			else
 			{
 				 //destroy the shadow because disabled, or too far from the player.
-				if (self.myShadow) 
+				if (self.myShadow)
 				{
 					self.myShadow.Destroy();
 					self.myShadow = null;
 					//Console.PrintF("--- DESTROY shadow to %s ",self.GetClassName());
-				}				  
+				}
 			}
 			//update
-			self.shadowCloseEnoughToPlayer = bEnable; 
+			self.shadowCloseEnoughToPlayer = bEnable;
 		}
 	}
 
-	override void PostBeginPlay() 
+	override void PostBeginPlay()
 	{
 		//by default:
 		self.shadowCloseEnoughToPlayer = false;
@@ -212,19 +212,19 @@ class Z_ShadeMe : CustomInventory
 	//
 	//===========================================================================
 
-	override void Tick() 
-	{ 
+	override void Tick()
+	{
 		countFromLastUpdate++;
 
 		//Cleanup : shadow is too old, it means it has not been tested
 		//for player proximity for a long time, which means it is indeed too far !
-		if (countFromLastUpdate > maxMonsterShadowAgeInTicks) 
+		if (countFromLastUpdate > maxMonsterShadowAgeInTicks)
 		{
 			self.SetEnableShadow(false);
 			Destroy();
 			return;
 		}
-		
+
 		Super.Tick();
 	}
 	//===========================================================================
@@ -347,10 +347,10 @@ class SpriteShadowHandler : EventHandler
 			ThinkerIterator it = ThinkerIterator.Create("Z_ShadeMe");
 			Z_ShadeMe shadeMe;
 			while (shadeMe = Z_ShadeMe(it.Next()))
-			{	
+			{
 				//Destroy all shadows, and Z_ShadeMe.
 				//Shadows will be re-created at next WorldTicks().
-				if (shadeMe) 
+				if (shadeMe)
 				{
 					shadeMe.SetEnableShadow(false);
 					shadeMe.Destroy();
@@ -371,7 +371,7 @@ class SpriteShadowHandler : EventHandler
 
 		double shadowDist = Cvar.FindCvar("cl_spriteshadowdistance").GetFloat();
 		bool shadows_enabled = Cvar.FindCvar("cl_spriteshadow").GetBool();
-		
+
 		//1) update shadows enabling flag to Z_ShadeMe according to distance to player:
 		// look for shadow casters around you
 		BlockThingsIterator it = BlockThingsIterator.Create(p.mo, shadowDist);
@@ -382,7 +382,7 @@ class SpriteShadowHandler : EventHandler
 			if (mo.bIsMonster)
 			{
 				let shadeMe = Z_ShadeMe(mo.FindInventory("Z_ShadeMe"));
-				
+
 				bool display_shadows = shadows_enabled && (mo.Distance2DSquared(p.mo) < shadowDist ** 2);
 
 				if (shadeMe)
@@ -392,7 +392,7 @@ class SpriteShadowHandler : EventHandler
 				else if (display_shadows)
 				{
 					//lazy creation of Z_ShadeMe. The shadow itself is created in Z_ShadeMe.PostBeginPlay().
-					mo.A_GiveInventory("Z_ShadeMe", 1);			
+					mo.A_GiveInventory("Z_ShadeMe", 1);
 				}
 			}
 		}//end while.
