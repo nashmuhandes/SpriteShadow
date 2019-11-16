@@ -141,7 +141,10 @@ class Z_SpriteShadow : Actor
 //
 //
 //===========================================================================
-
+//REFRESH_PERIOD / SHADOW_MAX_AGE balances CPU perfomance against shadow appear/disappearance liveness.
+const REFRESH_PERIOD = 17; // shadows are "refreshed" every 0.5s.
+const SHADOW_MAX_AGE = 2 * REFRESH_PERIOD;	// "un-refreshed" shadows die after 1s. 
+	
 class Z_ShadeMe : CustomInventory
 {
 	Default
@@ -199,9 +202,8 @@ class Z_ShadeMe : CustomInventory
 
 	override void PostBeginPlay()
 	{
-		// by default:
 		self.shadowCloseEnoughToPlayer = false;
-		maxMonsterShadowAgeInTicks = 35 * 2;
+		self.maxMonsterShadowAgeInTicks = SHADOW_MAX_AGE;
 		self.SetEnableShadow(true);
 		Super.PostBeginPlay();
 	}
@@ -297,6 +299,9 @@ class SpriteShadowHandler : EventHandler
 	{
 		let pmo = players[e.PlayerNumber].mo;
 		if (pmo) DoSpawnPlayerShadow(pmo);
+		
+		//make it shadows appear next WorldTick:
+		countTicks = -1;
 	}
 
 	override void PlayerRespawned(PlayerEvent e)
@@ -331,6 +336,12 @@ class SpriteShadowHandler : EventHandler
 			}
 		}
 	}
+	
+	override void WorldLoaded(WorldEvent e)
+	{
+		//make it shadows appear next WorldTick:
+		countTicks = -1;
+	}
 
 	//===========================================================================
 	//
@@ -350,14 +361,14 @@ class SpriteShadowHandler : EventHandler
 			while (shadeMe = Z_ShadeMe(it.Next()))
 			{
 				// Destroy all shadows, and Z_ShadeMe.
-				// Shadows will be re-created at next WorldTick().
+				// Shadows will be re-created at next WorldTicks().
 				if (shadeMe)
 				{
 					shadeMe.SetEnableShadow(false);
 					shadeMe.Destroy();
 				}
 			}
-			// VSO: Trick so that the next Shadow re-creation will only occur in 35 ticks = 1s.
+			//Trick so that the next Shadow re-creation will only occur in REFRESH_PERIOD ticks.
 			countTicks = 0;
 			return;
 		}
@@ -365,7 +376,7 @@ class SpriteShadowHandler : EventHandler
 		countTicks++;
 
 		// no need to update this too often
-		if (countTicks % 35 != 0) return;
+		if (countTicks % REFRESH_PERIOD != 0) return;
 
 		PlayerInfo p = players[consoleplayer];
 		if (!p) return;
