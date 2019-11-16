@@ -158,7 +158,7 @@ class Z_ShadeMe : CustomInventory
 
 	Z_SpriteShadow myShadow;
 	int countFromLastUpdate;
-	int maxMonsterShadowAgeInTicks;
+	int maxShadowAgeInTicks;
 	bool shadowCloseEnoughToPlayer;
 
 	void SetEnableShadow(bool bEnable)
@@ -203,7 +203,18 @@ class Z_ShadeMe : CustomInventory
 	override void PostBeginPlay()
 	{
 		self.shadowCloseEnoughToPlayer = false;
-		self.maxMonsterShadowAgeInTicks = SHADOW_MAX_AGE;
+		
+		// If the Shadow owner if a Player, its shadow age is "infinite", i.e set to 0. 
+		let pmo = PlayerPawn(Owner);
+		if (pmo) 
+		{
+			self.maxShadowAgeInTicks = 0;
+		}
+		else
+		{
+			self.maxShadowAgeInTicks = SHADOW_MAX_AGE;
+		}
+		
 		self.SetEnableShadow(true);
 		Super.PostBeginPlay();
 	}
@@ -219,9 +230,9 @@ class Z_ShadeMe : CustomInventory
 	{
 		countFromLastUpdate++;
 
-		// Cleanup : shadow is too old, it means it has not been tested
+		// Cleanup : Shadow is too old, it means it has not been tested
 		// for player proximity for a long time, which means it is indeed too far !
-		if (countFromLastUpdate > maxMonsterShadowAgeInTicks)
+		if (maxShadowAgeInTicks > 0 && countFromLastUpdate > maxShadowAgeInTicks)
 		{
 			self.SetEnableShadow(false);
 			Destroy();
@@ -271,7 +282,10 @@ class SpriteShadowHandler : EventHandler
 
 	void DoSpawnPlayerShadow(PlayerPawn pmo)
 	{
-		if (pmo) pmo.A_GiveInventory("Z_ShadeMe", 1);
+		if (pmo && Cvar.FindCvar("cl_spriteshadow").GetBool())
+		{
+			pmo.A_GiveInventory("Z_ShadeMe", 1);
+		}
 	}
 
 	void DoRemovePlayerShadow(PlayerPawn pmo)
@@ -279,7 +293,11 @@ class SpriteShadowHandler : EventHandler
 		if (pmo)
 		{
 			let shadeMe = Z_ShadeMe(pmo.FindInventory("Z_ShadeMe"));
-			if (shadeMe) shadeMe.Destroy();
+			if (shadeMe) 
+			{
+				shadeMe.SetEnableShadow(false);
+				shadeMe.Destroy();
+			}
 		}
 	}
 
@@ -318,20 +336,12 @@ class SpriteShadowHandler : EventHandler
 
 	override void WorldUnloaded(WorldEvent e)
 	{
-		// player is leaving this level, so mark their shadows for destruction
+		// player are leaving this level, so destroy their shadows. 
 		for (int i = 0; i < MAXPLAYERS; i++)
 		{
 			let pmo = players[i].mo;
 			if (pmo && PlayerInGame[i])
 			{
-				// find the shadow and destroy it
-				let shadeMe = Z_ShadeMe(pmo.FindInventory("Z_ShadeMe"));
-
-				if (shadeMe && shadeMe.myShadow)
-				{
-					shadeMe.myShadow.Destroy();
-				}
-
 				DoRemovePlayerShadow(pmo);
 			}
 		}
@@ -353,14 +363,13 @@ class SpriteShadowHandler : EventHandler
 	override void WorldTick(void)
 	{
 		// 0) Save game : do not serialize shadows.
-		// do not serialize shadows
 		if (gameaction == ga_savegame || gameaction == ga_autosave)
 		{
 			ThinkerIterator it = ThinkerIterator.Create("Z_ShadeMe");
 			Z_ShadeMe shadeMe;
 			while (shadeMe = Z_ShadeMe(it.Next()))
 			{
-				// Destroy all shadows, and Z_ShadeMe.
+				// Destroy all shadows, and Z_ShadeMe (including Player's)
 				// Shadows will be re-created at next WorldTicks().
 				if (shadeMe)
 				{
@@ -368,13 +377,13 @@ class SpriteShadowHandler : EventHandler
 					shadeMe.Destroy();
 				}
 			}
-			//Trick so that the next Shadow re-creation will only occur in REFRESH_PERIOD ticks.
+			
+			//Trick so that the next Shadow monsters re-creation will only occur in REFRESH_PERIOD ticks.
 			countTicks = 0;
-			return;
 		}
 
 		countTicks++;
-
+			
 		// no need to update this too often
 		if (countTicks % REFRESH_PERIOD != 0) return;
 
@@ -383,8 +392,29 @@ class SpriteShadowHandler : EventHandler
 
 		double shadowDist = Cvar.FindCvar("cl_spriteshadowdistance").GetFloat();
 		bool shadows_enabled = Cvar.FindCvar("cl_spriteshadow").GetBool();
+		
+		//1) Update Player shadows according to current setting. 		
+		for (int i = 0; i < MAXPLAYERS; i++)
+		{
+			let pmo = players[i].mo;
+			if (pmo && PlayerInGame[i])
+			{
+				let shadeMe = Z_ShadeMe(pmo.FindInventory("Z_ShadeMe"));
+				
+				if (shadeMe && !shadows_enabled)
+				{
+					shadeMe.SetEnableShadow(false);
+					shadeMe.Destroy();
+				}
+				else if (shadeMe == null && shadows_enabled)
+				{
+					// lazy creation of Z_ShadeMe. The shadow itself is created in Z_ShadeMe.PostBeginPlay().
+					pmo.A_GiveInventory("Z_ShadeMe", 1);
+				}
+			}
+		}
 
-		// 1) update shadows enabling flag to Z_ShadeMe according to distance to player:
+		// 2) Update Monster shadows enabling flag to Z_ShadeMe according to distance to player:
 		// look for shadow casters around you
 		BlockThingsIterator it = BlockThingsIterator.Create(p.mo, shadowDist);
 		while (it.Next())
