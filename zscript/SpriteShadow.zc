@@ -370,7 +370,7 @@ class SpriteShadowHandler : EventHandler
 		if (!p) return;
 
 		double shadowDist = Cvar.FindCvar("cl_spriteshadowdistance").GetFloat();
-		bool shadows_enabled = Cvar.FindCvar("cl_spriteshadowenabled").GetBool();
+		bool shadows_enabled = Cvar.FindCvar("cl_spriteshadow").GetBool();
 		
 		//1) update shadows enabling flag to Z_ShadeMe according to distance to player:
 		// look for shadow casters around you
