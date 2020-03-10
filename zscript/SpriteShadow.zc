@@ -43,6 +43,7 @@ class Z_SpriteShadow : Actor
 		RenderStyle "Stencil";
 		StencilColor "Black";
 		FloatBobPhase 0;
+		+DONTSPLASH
 		+NOBLOCKMAP
 		+NOINTERACTION
 		+NOTONAUTOMAP
