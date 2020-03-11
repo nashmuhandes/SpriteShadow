@@ -1,4 +1,4 @@
-// Copyright 2017-2020 Nash Muhandes
+// Copyright 2017 - 2020 Nash Muhandes
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -125,6 +125,20 @@ class Z_SpriteShadow : Actor
 				}
 			}
 
+			double adjustedHeight = caster.FloorZ;
+			double shadowZDist = 128.0;
+
+			// Backported FindOnMObj check from Blade of Agony
+			// (but removed the player and floater restriction)
+			if (caster.Pos.Z > FloorZ)
+			{
+				Actor onmo = FindOnMobj(caster, shadowZDist);
+				if (onmo && onmo.Pos.Z + onmo.Height > FloorZ)
+				{
+					adjustedHeight = onmo.Pos.Z + onmo.Height;
+				}
+			}
+
 			// sync size of bounding box
 			if (Radius != caster.Radius || Height != caster.Height)
 			{
@@ -148,7 +162,7 @@ class Z_SpriteShadow : Actor
 			Vector3 sPos = (
 				caster.Pos.X + cos(players[consoleplayer].camera.Angle) * 0.01,
 				caster.Pos.Y + sin(players[consoleplayer].camera.Angle) * 0.01,
-				caster.FloorZ
+				adjustedHeight
 				);
 			SetOrigin(sPos, true);
 
@@ -160,6 +174,39 @@ class Z_SpriteShadow : Actor
 			Destroy();
 			return;
 		}
+	}
+
+	//===========================================================================
+	//
+	//
+	//
+	//===========================================================================
+
+	// [Backported from Blade of Agony]
+	// Finds a walkable actor underneath 'origin' actor, within 'range' height distance...
+	Actor FindOnMObj(Actor origin, double range = 0)
+	{
+		BlockThingsIterator it = BlockThingsIterator.Create(origin, 1);
+
+		while (it.Next())
+		{
+			let mo = it.thing;
+
+			if (
+				mo == self || // Ignore self
+				!mo.bSolid || // Ignore non-solids
+				mo.bIsMonster || // Ignore monsters
+				abs(mo.Pos.X - origin.Pos.X) > origin.Radius + mo.Radius || // Ignore if outside of hitbox footprint
+				abs(mo.Pos.Y - origin.Pos.Y) > origin.Radius + mo.Radius    //  (using square hitboxes)
+			) { continue; }
+
+			if (origin.Pos.Z >= mo.Pos.Z + mo.Height && origin.Pos.Z <= mo.Pos.Z + mo.Height + range)
+			{
+				return mo;
+			}
+		}
+
+		return NULL;
 	}
 }
 
