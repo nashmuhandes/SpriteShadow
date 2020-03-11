@@ -1,4 +1,4 @@
-// Copyright 2017-2019 Nash Muhandes
+// Copyright 2017-2020 Nash Muhandes
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -36,8 +36,32 @@
 //
 //===========================================================================
 
+// REFRESH_PERIOD / SHADOW_MAX_AGE balances CPU perfomance against shadow
+// appear/disappearance liveness.
+
+// shadows are "refreshed" every 0.5s.
+const REFRESH_PERIOD = 17;
+
+// "un-refreshed" shadows die after 1s.
+const SHADOW_MAX_AGE = 2 * REFRESH_PERIOD;
+
+//===========================================================================
+//
+//
+//
+//===========================================================================
+
 class Z_SpriteShadow : Actor
 {
+	Actor caster;
+	bool bStopTicking;
+
+	//===========================================================================
+	//
+	//
+	//
+	//===========================================================================
+
 	Default
 	{
 		RenderStyle "Stencil";
@@ -49,8 +73,11 @@ class Z_SpriteShadow : Actor
 		+NOTONAUTOMAP
 	}
 
-	Actor caster;
-	bool bStopTicking;
+	//===========================================================================
+	//
+	//
+	//
+	//===========================================================================
 
 	override void Tick(void)
 	{
@@ -136,24 +163,19 @@ class Z_SpriteShadow : Actor
 	}
 }
 
-//===========================================================================
-//
-//
-//
-//
-//===========================================================================
-
-// REFRESH_PERIOD / SHADOW_MAX_AGE balances CPU perfomance against shadow
-// appear/disappearance liveness.
-
-// shadows are "refreshed" every 0.5s.
-const REFRESH_PERIOD = 17;
-
-// "un-refreshed" shadows die after 1s.
-const SHADOW_MAX_AGE = 2 * REFRESH_PERIOD;
-
 class Z_ShadeMe : CustomInventory
 {
+	Z_SpriteShadow myShadow;
+	int countFromLastUpdate;
+	int maxShadowAgeInTicks;
+	bool shadowCloseEnoughToPlayer;
+
+	//===========================================================================
+	//
+	//
+	//
+	//===========================================================================
+
 	Default
 	{
 		FloatBobPhase 0;
@@ -163,10 +185,52 @@ class Z_ShadeMe : CustomInventory
 		+INVENTORY.AUTOACTIVATE
 	}
 
-	Z_SpriteShadow myShadow;
-	int countFromLastUpdate;
-	int maxShadowAgeInTicks;
-	bool shadowCloseEnoughToPlayer;
+	//===========================================================================
+	//
+	//
+	//
+	//===========================================================================
+
+	override void PostBeginPlay()
+	{
+		self.shadowCloseEnoughToPlayer = false;
+
+		// If the Shadow owner if a Player, its shadow age is "infinite", i.e set to 0.
+		let pmo = PlayerPawn(Owner);
+		if (pmo)
+		{
+			self.maxShadowAgeInTicks = 0;
+		}
+		else
+		{
+			self.maxShadowAgeInTicks = SHADOW_MAX_AGE;
+		}
+
+		self.SetEnableShadow(true);
+		Super.PostBeginPlay();
+	}
+
+	override void Tick()
+	{
+		countFromLastUpdate++;
+
+		// Cleanup : Shadow is too old, it means it has not been tested
+		// for player proximity for a long time, which means it is indeed too far !
+		if (maxShadowAgeInTicks > 0 && countFromLastUpdate > maxShadowAgeInTicks)
+		{
+			self.SetEnableShadow(false);
+			Destroy();
+			return;
+		}
+
+		Super.Tick();
+	}
+
+	//===========================================================================
+	//
+	//
+	//
+	//===========================================================================
 
 	void SetEnableShadow(bool bEnable)
 	{
@@ -207,49 +271,7 @@ class Z_ShadeMe : CustomInventory
 		}
 	}
 
-	override void PostBeginPlay()
-	{
-		self.shadowCloseEnoughToPlayer = false;
-
-		// If the Shadow owner if a Player, its shadow age is "infinite", i.e set to 0.
-		let pmo = PlayerPawn(Owner);
-		if (pmo)
-		{
-			self.maxShadowAgeInTicks = 0;
-		}
-		else
-		{
-			self.maxShadowAgeInTicks = SHADOW_MAX_AGE;
-		}
-
-		self.SetEnableShadow(true);
-		Super.PostBeginPlay();
-	}
-
 	//===========================================================================
-	//
-	//
-	//
-	//
-	//===========================================================================
-
-	override void Tick()
-	{
-		countFromLastUpdate++;
-
-		// Cleanup : Shadow is too old, it means it has not been tested
-		// for player proximity for a long time, which means it is indeed too far !
-		if (maxShadowAgeInTicks > 0 && countFromLastUpdate > maxShadowAgeInTicks)
-		{
-			self.SetEnableShadow(false);
-			Destroy();
-			return;
-		}
-
-		Super.Tick();
-	}
-	//===========================================================================
-	//
 	//
 	//
 	//
@@ -273,7 +295,6 @@ class Z_ShadeMe : CustomInventory
 //
 //
 //
-//
 //===========================================================================
 
 class SpriteShadowHandler : EventHandler
@@ -283,42 +304,8 @@ class SpriteShadowHandler : EventHandler
 	//===========================================================================
 	//
 	//
-	// Player-specific stuff
 	//
 	//===========================================================================
-
-	void DoSpawnPlayerShadow(PlayerPawn pmo)
-	{
-		if (pmo && Cvar.FindCvar("cl_spriteshadow").GetBool())
-		{
-			pmo.A_GiveInventory("Z_ShadeMe", 1);
-		}
-	}
-
-	void DoRemovePlayerShadow(PlayerPawn pmo)
-	{
-		if (pmo)
-		{
-			let shadeMe = Z_ShadeMe(pmo.FindInventory("Z_ShadeMe"));
-			if (shadeMe)
-			{
-				shadeMe.SetEnableShadow(false);
-				shadeMe.Destroy();
-			}
-		}
-	}
-
-	void SpawnPlayerShadows(void)
-	{
-		for (int i = 0; i < MAXPLAYERS; i++)
-		{
-			let pmo = players[i].mo;
-			if (pmo && PlayerInGame[i])
-			{
-				DoSpawnPlayerShadow(pmo);
-			}
-		}
-	}
 
 	override void PlayerEntered(PlayerEvent e)
 	{
@@ -341,6 +328,12 @@ class SpriteShadowHandler : EventHandler
 		if (pmo) DoRemovePlayerShadow(pmo);
 	}
 
+	override void WorldLoaded(WorldEvent e)
+	{
+		// make it shadows appear next WorldTick:
+		countTicks = -1;
+	}
+
 	override void WorldUnloaded(WorldEvent e)
 	{
 		// players are leaving this level, so destroy their shadows.
@@ -353,19 +346,6 @@ class SpriteShadowHandler : EventHandler
 			}
 		}
 	}
-
-	override void WorldLoaded(WorldEvent e)
-	{
-		// make it shadows appear next WorldTick:
-		countTicks = -1;
-	}
-
-	//===========================================================================
-	//
-	//
-	//
-	//
-	//===========================================================================
 
 	override void WorldTick(void)
 	{
@@ -443,6 +423,45 @@ class SpriteShadowHandler : EventHandler
 					// lazy creation of Z_ShadeMe. The shadow itself is created in Z_ShadeMe.PostBeginPlay().
 					mo.A_GiveInventory("Z_ShadeMe", 1);
 				}
+			}
+		}
+	}
+
+	//===========================================================================
+	//
+	//
+	//
+	//===========================================================================
+
+	void DoSpawnPlayerShadow(PlayerPawn pmo)
+	{
+		if (pmo && Cvar.FindCvar("cl_spriteshadow").GetBool())
+		{
+			pmo.A_GiveInventory("Z_ShadeMe", 1);
+		}
+	}
+
+	void DoRemovePlayerShadow(PlayerPawn pmo)
+	{
+		if (pmo)
+		{
+			let shadeMe = Z_ShadeMe(pmo.FindInventory("Z_ShadeMe"));
+			if (shadeMe)
+			{
+				shadeMe.SetEnableShadow(false);
+				shadeMe.Destroy();
+			}
+		}
+	}
+
+	void SpawnPlayerShadows(void)
+	{
+		for (int i = 0; i < MAXPLAYERS; i++)
+		{
+			let pmo = players[i].mo;
+			if (pmo && PlayerInGame[i])
+			{
+				DoSpawnPlayerShadow(pmo);
 			}
 		}
 	}
