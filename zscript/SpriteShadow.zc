@@ -424,8 +424,8 @@ class SpriteShadowHandler : EventHandler
 		PlayerInfo p = players[consoleplayer];
 		if (!p) return;
 
-		double shadowDist = Cvar.FindCvar("spriteshadow_distance").GetFloat();
-		bool shadows_enabled = Cvar.FindCvar("spriteshadow_enabled").GetBool();
+		double shadowDist = CVar.FindCVar("spriteshadow_distance").GetFloat();
+		bool shadows_enabled = CVar.FindCVar("spriteshadow_enabled").GetBool();
 
 		// 1) Update Player shadows according to current setting.
 		for (int i = 0; i < MAXPLAYERS; i++)
@@ -482,7 +482,7 @@ class SpriteShadowHandler : EventHandler
 
 	void DoSpawnPlayerShadow(PlayerPawn pmo)
 	{
-		if (pmo && Cvar.FindCvar("spriteshadow_enabled").GetBool())
+		if (pmo && CVar.FindCVar("spriteshadow_enabled").GetBool())
 		{
 			pmo.A_GiveInventory("Z_ShadeMe", 1);
 		}
