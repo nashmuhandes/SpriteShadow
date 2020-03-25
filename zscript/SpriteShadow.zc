@@ -78,8 +78,8 @@ class SpriteShadow : Actor
 			bool selfShadow =
 			(
 				caster is "PlayerPawn" &&
-				players[consoleplayer].mo == caster &&
-				players[consoleplayer].camera == players[consoleplayer].mo &&
+				players[consoleplayer].camera &&
+				players[consoleplayer].camera == caster &&
 				!(caster.player.cheats & CF_CHASECAM)
 			);
 
@@ -109,13 +109,15 @@ class SpriteShadow : Actor
 				}
 			}
 
-			// SetOrigin is expensive, so let's do things ourselves
-			Vector3 sPos =
-			(
-				caster.Pos.X + cos(players[consoleplayer].camera.Angle) * 0.01,
-				caster.Pos.Y + sin(players[consoleplayer].camera.Angle) * 0.01,
-				shadowPosZ
-			);
+			// update shadow position
+			Vector3 sPos = (caster.Pos.X, caster.Pos.Y, shadowPosZ);
+			if (players[consoleplayer].camera)
+			{
+				sPos.X += cos(players[consoleplayer].camera.Angle) * 0.01;
+				spos.Y += sin(players[consoleplayer].camera.Angle) * 0.01;
+			}
+
+			// SetOrigin can get expensive, so let's do things ourselves
 			LinkContext ctx;
 			UnlinkFromWorld(ctx);
 			SetXYZ(sPos);
