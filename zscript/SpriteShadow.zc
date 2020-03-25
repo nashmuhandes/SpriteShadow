@@ -97,12 +97,24 @@ class SpriteShadow : Actor
 			Scale.X = caster.Scale.X;
 			Scale.Y = caster.Scale.Y * 0.1;
 
+			// Backported FindOnMObj check from Blade of Agony
+			double shadowPosZ = caster.FloorZ;
+			double shadowZDist = 128.0;
+			if (caster.Pos.Z > FloorZ)
+			{
+				Actor onmo = FindOnMobj(caster, shadowZDist);
+				if (onmo && onmo.Pos.Z + onmo.Height > FloorZ)
+				{
+					shadowPosZ = onmo.Pos.Z + onmo.Height;
+				}
+			}
+
 			// SetOrigin is expensive, so let's do things ourselves
 			Vector3 sPos =
 			(
 				caster.Pos.X + cos(players[consoleplayer].camera.Angle) * 0.01,
 				caster.Pos.Y + sin(players[consoleplayer].camera.Angle) * 0.01,
-				caster.FloorZ
+				shadowPosZ
 			);
 			LinkContext ctx;
 			UnlinkFromWorld(ctx);
@@ -114,6 +126,51 @@ class SpriteShadow : Actor
 			Destroy();
 			return;
 		}
+	}
+
+	//===========================================================================
+	//
+	//
+	//
+	//===========================================================================
+
+	// [Backported from Blade of Agony]
+	// Finds a walkable actor underneath 'origin' actor, within 'range' height distance...
+	Actor FindOnMObj(Actor origin, double range = 0)
+	{
+		BlockThingsIterator it = BlockThingsIterator.Create(origin, 1);
+
+		while (it.Next())
+		{
+			let mo = it.thing;
+
+			bool invalid =
+			(
+				// Ignore self
+				mo == self ||
+
+				// Ignore non-solids
+				!mo.bSolid ||
+
+				// Ignore monsters
+				mo.bIsMonster ||
+
+				// Ignore if outside of hitbox footprint
+				abs(mo.Pos.X - origin.Pos.X) > origin.Radius + mo.Radius ||
+
+				//  (using square hitboxes)
+				abs(mo.Pos.Y - origin.Pos.Y) > origin.Radius + mo.Radius
+			);
+
+			if (invalid) continue;
+
+			if (origin.Pos.Z >= mo.Pos.Z + mo.Height && origin.Pos.Z <= mo.Pos.Z + mo.Height + range)
+			{
+				return mo;
+			}
+		}
+
+		return NULL;
 	}
 }
 
