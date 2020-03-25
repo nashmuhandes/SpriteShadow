@@ -166,7 +166,8 @@ class SpriteShadow : Actor
 
 			if (invalid) continue;
 
-			if (origin.Pos.Z >= mo.Pos.Z + mo.Height && origin.Pos.Z <= mo.Pos.Z + mo.Height + range)
+			if (origin.Pos.Z >= mo.Pos.Z + mo.Height &&
+				origin.Pos.Z <= mo.Pos.Z + mo.Height + range)
 			{
 				return mo;
 			}
