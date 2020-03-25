@@ -28,7 +28,7 @@
 //
 // SpriteShadow
 //
-// Duke3D-style Actor Shadows
+// Sprite-Based Actor Shadows
 //
 // Written by Nash Muhandes
 //
@@ -36,14 +36,6 @@
 //
 //===========================================================================
 
-// REFRESH_PERIOD / SHADOW_MAX_AGE balances CPU perfomance against shadow
-// appear/disappearance liveness.
-
-// shadows are "refreshed" every 0.5s.
-const REFRESH_PERIOD = 17;
-
-// "un-refreshed" shadows die after 1s.
-const SHADOW_MAX_AGE = 2 * REFRESH_PERIOD;
 
 //===========================================================================
 //
@@ -51,10 +43,9 @@ const SHADOW_MAX_AGE = 2 * REFRESH_PERIOD;
 //
 //===========================================================================
 
-class Z_SpriteShadow : Actor
+class SpriteShadow : Actor
 {
 	Actor caster;
-	bool bStopTicking;
 
 	//===========================================================================
 	//
@@ -81,260 +72,162 @@ class Z_SpriteShadow : Actor
 
 	override void Tick(void)
 	{
-		if (!bNoTimeFreeze && isFrozen()) return;
-
-		if (!bStopTicking)
-		{
-			Super.Tick();
-			bStopTicking = true;
-			return;
-		}
-
 		if (caster)
 		{
-			// filter your own shadow and hide it from your first person view
-			if (caster is "PlayerPawn" && players[consoleplayer].mo == caster)
-			{
-				if (players[consoleplayer].camera == players[consoleplayer].mo && !(caster.player.cheats & CF_CHASECAM))
-				{
-					bInvisible = true;
-				}
-				else
-				{
-					bInvisible = false;
-				}
-			}
-			else
-			{
-				if (players[consoleplayer].camera && players[consoleplayer].camera.CheckLocalView(consoleplayer))
-				{
-					// hide shadow if you are under the monster
-					if (players[consoleplayer].camera.Pos.Z
-						+ (players[consoleplayer].camera.player ?
-							players[consoleplayer].camera.player.viewheight
-							: players[consoleplayer].camera.GetCameraHeight())
-						< Pos.Z)
-						bInvisible = true;
-
-					// always visible for monsters
-					else bInvisible = false;
-				}
-				else
-				{
-					return;
-				}
-			}
-
-			double adjustedHeight = caster.FloorZ;
-			double shadowZDist = 128.0;
-
-			// Backported FindOnMObj check from Blade of Agony
-			// (but removed the player and floater restriction)
-			if (caster.Pos.Z > FloorZ)
-			{
-				Actor onmo = FindOnMobj(caster, shadowZDist);
-				if (onmo && onmo.Pos.Z + onmo.Height > FloorZ)
-				{
-					adjustedHeight = onmo.Pos.Z + onmo.Height;
-				}
-			}
-
-			// sync size of bounding box
-			if (Radius != caster.Radius || Height != caster.Height)
-			{
-				A_SetSize(caster.Radius, caster.Height);
-			}
-
-			// sync sprites and angle
 			Sprite = caster.Sprite;
 			Frame = caster.Frame;
 			Angle = caster.Angle;
-
-			// sync alpha
 			Alpha = caster.Alpha * 0.5;
-
-			// sync scale
 			Scale.X = caster.Scale.X;
 			Scale.Y = caster.Scale.Y * 0.1;
 
-			// sync position (offset shadow away from local camera)
-			if (!players[consoleplayer].camera) return;
-			Vector3 sPos = (
+			// SetOrigin is expensive, so let's do things ourselves
+			Vector3 sPos =
+			(
 				caster.Pos.X + cos(players[consoleplayer].camera.Angle) * 0.01,
 				caster.Pos.Y + sin(players[consoleplayer].camera.Angle) * 0.01,
-				adjustedHeight
-				);
-			SetOrigin(sPos, true);
-
-			return;
+				caster.FloorZ
+			);
+			LinkContext ctx;
+			UnlinkFromWorld(ctx);
+			SetXYZ(sPos);
+			LinkToWorld(ctx);
 		}
 		else
 		{
-			// clean-up
 			Destroy();
 			return;
 		}
-	}
-
-	//===========================================================================
-	//
-	//
-	//
-	//===========================================================================
-
-	// [Backported from Blade of Agony]
-	// Finds a walkable actor underneath 'origin' actor, within 'range' height distance...
-	Actor FindOnMObj(Actor origin, double range = 0)
-	{
-		BlockThingsIterator it = BlockThingsIterator.Create(origin, 1);
-
-		while (it.Next())
-		{
-			let mo = it.thing;
-
-			if (
-				mo == self || // Ignore self
-				!mo.bSolid || // Ignore non-solids
-				mo.bIsMonster || // Ignore monsters
-				abs(mo.Pos.X - origin.Pos.X) > origin.Radius + mo.Radius || // Ignore if outside of hitbox footprint
-				abs(mo.Pos.Y - origin.Pos.Y) > origin.Radius + mo.Radius    //  (using square hitboxes)
-			) { continue; }
-
-			if (origin.Pos.Z >= mo.Pos.Z + mo.Height && origin.Pos.Z <= mo.Pos.Z + mo.Height + range)
-			{
-				return mo;
-			}
-		}
-
-		return NULL;
 	}
 }
 
-class Z_ShadeMe : CustomInventory
+//===========================================================================
+//
+//
+//
+//===========================================================================
+
+class SpriteShadowCaster
 {
-	Z_SpriteShadow myShadow;
-	int countFromLastUpdate;
-	int maxShadowAgeInTicks;
-	bool shadowCloseEnoughToPlayer;
+	Actor mo;
+	Actor shadow;
+	bool hasShadow;
+}
 
-	//===========================================================================
-	//
-	//
-	//
-	//===========================================================================
+class SpriteShadowThinker : Thinker
+{
+	Array<SpriteShadowCaster> shadowCasters;
+	CVar cvEnabled;
+	CVar cvShadowDistance;
 
-	Default
+	override void Tick(void)
 	{
-		FloatBobPhase 0;
-		Inventory.MaxAmount 1;
-		+INVENTORY.UNDROPPABLE
-		+INVENTORY.UNTOSSABLE
-		+INVENTORY.AUTOACTIVATE
-	}
-
-	//===========================================================================
-	//
-	//
-	//
-	//===========================================================================
-
-	override void PostBeginPlay()
-	{
-		self.shadowCloseEnoughToPlayer = false;
-
-		// If the Shadow owner if a Player, its shadow age is "infinite", i.e set to 0.
-		let pmo = PlayerPawn(Owner);
-		if (pmo)
+		if (!cvEnabled || !cvShadowDistance)
 		{
-			self.maxShadowAgeInTicks = 0;
-		}
-		else
-		{
-			self.maxShadowAgeInTicks = SHADOW_MAX_AGE;
-		}
-
-		self.SetEnableShadow(true);
-		Super.PostBeginPlay();
-	}
-
-	override void Tick()
-	{
-		countFromLastUpdate++;
-
-		// Cleanup : Shadow is too old, it means it has not been tested
-		// for player proximity for a long time, which means it is indeed too far !
-		if (maxShadowAgeInTicks > 0 && countFromLastUpdate > maxShadowAgeInTicks)
-		{
-			self.SetEnableShadow(false);
-			Destroy();
+			ThrowAbortException("Cannot tick SpriteShadowThinker due to missing CVar references!");
 			return;
 		}
 
-		Super.Tick();
-	}
+		// get the currently viewed camera
+		Actor camera = players[consoleplayer].camera;
+		if (!camera) return;
 
-	//===========================================================================
-	//
-	//
-	//
-	//===========================================================================
+		BlockThingsIterator it = BlockThingsIterator.Create(camera, cvShadowDistance.GetFloat());
+		while (it.Next())
+		{
+			let other = it.Thing;
 
-	void SetEnableShadow(bool bEnable)
-	{
-		if (bEnable)
-		{
-			// reset mark date at enable only.
-			countFromLastUpdate = 0;
-		}
-		if (bEnable != self.shadowCloseEnoughToPlayer)
-		{
-			if (bEnable)
+			// shadow caster is close
+			// use (distance - 1) so that it stays within the BlockThingsIterator's range
+			if ((other.Distance3D(camera) - 1.0) < cvShadowDistance.GetFloat())
 			{
-				if (!self.myShadow)
-				{
-					let sh = Z_SpriteShadow(Spawn("Z_SpriteShadow", Owner.Pos, NO_REPLACE));
+				// currently qualify only monsters and players
+				// to do: implement some kind of actor black/whitelist system
+				bool valid =
+				(
+					other.bIsMonster ||
+					other is "PlayerPawn"
+				);
 
-					if (sh)
+				if (!valid) continue;
+
+				// prevent duplicate entries in the array
+				bool isDuplicate = false;
+				int i = 0;
+				for (i = 0; i < shadowCasters.Size(); i++)
+				{
+					if (shadowCasters[i] && shadowCasters[i].mo == other)
 					{
-						self.myShadow = sh;
-						self.myShadow.caster = Owner;
+						isDuplicate = true;
+						break;
 					}
-					//Console.PrintF("+++ Add shadow to %s ",self.GetClassName());
+				}
+
+				// add the actor into the shadow caster array
+				if (!isDuplicate)
+				{
+					AddSpriteShadowCaster(other);
+
+					// create the shadow actor
+					if (!shadowCasters[i].hasShadow)
+					{
+						let shadow = SpriteShadow(Actor.Spawn("SpriteShadow", shadowCasters[i].mo.Pos, NO_REPLACE));
+						if (shadow)
+						{
+							shadow.caster = shadowCasters[i].mo;
+							shadowCasters[i].shadow = shadow;
+							shadowCasters[i].hasShadow = true;
+						}
+					}
 				}
 			}
+			// shadow caster is too far away
 			else
 			{
-				// destroy the shadow because disabled, or too far from the player.
-				if (self.myShadow)
+				for (int j = 0; j < shadowCasters.Size(); j++)
 				{
-					self.myShadow.Destroy();
-					self.myShadow = null;
-					//Console.PrintF("--- DESTROY shadow to %s ",self.GetClassName());
+					if (shadowCasters[j] && shadowCasters[j].mo == other)
+					{
+						if (shadowCasters[j].shadow) shadowCasters[j].shadow.Destroy();
+						shadowCasters.Delete(j);
+						break;
+					}
 				}
 			}
 
-			// update
-			self.shadowCloseEnoughToPlayer = bEnable;
+			// array cleanup
+			for (int k = 0; k < shadowCasters.Size(); k++)
+			{
+				if (shadowCasters[k] && !shadowCasters[k].shadow)
+				{
+					shadowCasters.Delete(k);
+				}
+			}
 		}
 	}
 
-	//===========================================================================
-	//
-	//
-	//
-	//===========================================================================
-
-	States
+	void AddSpriteShadowCaster(Actor mo)
 	{
-	Use:
-		TNT1 A 0;
-		Fail;
-	Pickup:
-		TNT1 A 0
+		let sc = new("SpriteShadowCaster");
+		if (sc)
 		{
-			return true;
+			sc.mo = mo;
+			shadowCasters.Push(sc);
 		}
-		Stop;
+	}
+
+	void DoDestroy(void)
+	{
+		// kill all the shadows in this level
+		shadowCasters.Clear();
+		ThinkerIterator it = ThinkerIterator.Create("SpriteShadow");
+		SpriteShadow shadow;
+		while (shadow = SpriteShadow(it.Next()))
+		{
+			shadow.Destroy();
+		}
+
+		Destroy();
 	}
 }
 
@@ -346,170 +239,33 @@ class Z_ShadeMe : CustomInventory
 
 class SpriteShadowHandler : EventHandler
 {
-	int countTicks;
+	SpriteShadowThinker sst;
 
 	//===========================================================================
 	//
 	//
 	//
 	//===========================================================================
-
-	override void PlayerEntered(PlayerEvent e)
-	{
-		let pmo = players[e.PlayerNumber].mo;
-		if (pmo) DoSpawnPlayerShadow(pmo);
-
-		// make it shadows appear next WorldTick:
-		countTicks = -1;
-	}
-
-	override void PlayerRespawned(PlayerEvent e)
-	{
-		let pmo = players[e.PlayerNumber].mo;
-		if (pmo) DoSpawnPlayerShadow(pmo);
-	}
-
-	override void PlayerDied(PlayerEvent e)
-	{
-		let pmo = players[e.PlayerNumber].mo;
-		if (pmo) DoRemovePlayerShadow(pmo);
-	}
 
 	override void WorldLoaded(WorldEvent e)
 	{
-		// make it shadows appear next WorldTick:
-		countTicks = -1;
+		if (!sst)
+		{
+			sst = new("SpriteShadowThinker");
+			if (sst)
+			{
+				// cache the CVars
+				sst.cvEnabled = CVar.GetCVar("spriteshadow_enabled", players[consoleplayer]);
+				sst.cvShadowDistance = CVar.GetCVar("spriteshadow_distance", players[consoleplayer]);
+			}
+		}
 	}
 
 	override void WorldUnloaded(WorldEvent e)
 	{
-		// players are leaving this level, so destroy their shadows.
-		for (int i = 0; i < MAXPLAYERS; i++)
+		if (sst)
 		{
-			let pmo = players[i].mo;
-			if (pmo && PlayerInGame[i])
-			{
-				DoRemovePlayerShadow(pmo);
-			}
-		}
-	}
-
-	override void WorldTick(void)
-	{
-		// 0) Save game : do not serialize shadows.
-		if (gameaction == ga_savegame || gameaction == ga_autosave)
-		{
-			ThinkerIterator it = ThinkerIterator.Create("Z_ShadeMe");
-			Z_ShadeMe shadeMe;
-			while (shadeMe = Z_ShadeMe(it.Next()))
-			{
-				// Destroy all shadows, and Z_ShadeMe (including Player's)
-				// Shadows will be re-created at next WorldTicks().
-				if (shadeMe)
-				{
-					shadeMe.SetEnableShadow(false);
-					shadeMe.Destroy();
-				}
-			}
-
-			// Trick so that the next Shadow monsters re-creation will only occur in REFRESH_PERIOD ticks.
-			countTicks = 0;
-		}
-
-		countTicks++;
-
-		// no need to update this too often
-		if (countTicks % REFRESH_PERIOD != 0) return;
-
-		PlayerInfo p = players[consoleplayer];
-		if (!p) return;
-
-		double shadowDist = CVar.FindCVar("spriteshadow_distance").GetFloat();
-		bool shadows_enabled = CVar.FindCVar("spriteshadow_enabled").GetBool();
-
-		// 1) Update Player shadows according to current setting.
-		for (int i = 0; i < MAXPLAYERS; i++)
-		{
-			let pmo = players[i].mo;
-			if (pmo && PlayerInGame[i])
-			{
-				let shadeMe = Z_ShadeMe(pmo.FindInventory("Z_ShadeMe"));
-
-				if (shadeMe && !shadows_enabled)
-				{
-					shadeMe.SetEnableShadow(false);
-					shadeMe.Destroy();
-				}
-				else if (shadeMe == null && shadows_enabled)
-				{
-					// lazy creation of Z_ShadeMe. The shadow itself is created in Z_ShadeMe.PostBeginPlay().
-					pmo.A_GiveInventory("Z_ShadeMe", 1);
-				}
-			}
-		}
-
-		// 2) Update Monster shadows enabling flag to Z_ShadeMe according to distance to player:
-		// look for shadow casters around you
-		BlockThingsIterator it = BlockThingsIterator.Create(p.mo, shadowDist);
-		while (it.Next())
-		{
-			Actor mo = it.thing;
-			// only consider monster-tagged things:
-			if (mo.bIsMonster)
-			{
-				let shadeMe = Z_ShadeMe(mo.FindInventory("Z_ShadeMe"));
-
-				bool display_shadows = shadows_enabled && (mo.Distance2DSquared(p.mo) < shadowDist ** 2);
-
-				if (shadeMe)
-				{
-					shadeMe.SetEnableShadow(display_shadows);
-				}
-				else if (display_shadows)
-				{
-					// lazy creation of Z_ShadeMe. The shadow itself is created in Z_ShadeMe.PostBeginPlay().
-					mo.A_GiveInventory("Z_ShadeMe", 1);
-				}
-			}
-		}
-	}
-
-	//===========================================================================
-	//
-	//
-	//
-	//===========================================================================
-
-	void DoSpawnPlayerShadow(PlayerPawn pmo)
-	{
-		if (pmo && CVar.FindCVar("spriteshadow_enabled").GetBool())
-		{
-			pmo.A_GiveInventory("Z_ShadeMe", 1);
-		}
-	}
-
-	void DoRemovePlayerShadow(PlayerPawn pmo)
-	{
-		if (pmo)
-		{
-			let shadeMe = Z_ShadeMe(pmo.FindInventory("Z_ShadeMe"));
-			if (shadeMe)
-			{
-				shadeMe.SetEnableShadow(false);
-				shadeMe.Destroy();
-			}
-		}
-	}
-
-	void SpawnPlayerShadows(void)
-	{
-		for (int i = 0; i < MAXPLAYERS; i++)
-		{
-			let pmo = players[i].mo;
-			if (pmo && PlayerInGame[i])
-			{
-				DoSpawnPlayerShadow(pmo);
-			}
+			sst.DoDestroy();
 		}
 	}
 }
