@@ -74,6 +74,22 @@ class SpriteShadow : Actor
 	{
 		if (caster)
 		{
+			// filter shadow from yourself
+			bool selfShadow =
+			(
+				caster is "PlayerPawn" &&
+				players[consoleplayer].mo == caster &&
+				players[consoleplayer].camera == players[consoleplayer].mo &&
+				!(caster.player.cheats & CF_CHASECAM)
+			);
+
+			if (bInvisible = selfShadow)
+			{
+				// if self shadow, return early because it's pointless to keep processing from here
+				return;
+			}
+
+			// match caster's sprites
 			Sprite = caster.Sprite;
 			Frame = caster.Frame;
 			Angle = caster.Angle;
