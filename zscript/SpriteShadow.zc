@@ -205,6 +205,13 @@ class SpriteShadowThinker : Thinker
 			cvShadowDistance = CVar.GetCVar("spriteshadow_distance", players[consoleplayer]);
 		}
 
+		// disable SpriteShadows
+		if (!cvEnabled.GetBool())
+		{
+			DestroySpriteShadows();
+			return;
+		}
+
 		// get the currently viewed camera
 		Actor camera = players[consoleplayer].camera;
 		if (!camera) return;
@@ -293,8 +300,10 @@ class SpriteShadowThinker : Thinker
 		}
 	}
 
-	void DoDestroy(void)
+	void DestroySpriteShadows(void)
 	{
+		if (shadowCasters.Size() == 0) return;
+
 		// kill all the shadows in this level
 		shadowCasters.Clear();
 		ThinkerIterator it = ThinkerIterator.Create("SpriteShadow");
@@ -303,7 +312,11 @@ class SpriteShadowThinker : Thinker
 		{
 			shadow.Destroy();
 		}
+	}
 
+	void DoDestroy(void)
+	{
+		DestroySpriteShadows();
 		Destroy();
 	}
 }
