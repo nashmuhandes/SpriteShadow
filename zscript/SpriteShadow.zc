@@ -193,15 +193,16 @@ class SpriteShadowCaster
 class SpriteShadowThinker : Thinker
 {
 	Array<SpriteShadowCaster> shadowCasters;
-	CVar cvEnabled;
-	CVar cvShadowDistance;
+	transient CVar cvEnabled;
+	transient CVar cvShadowDistance;
 
 	override void Tick(void)
 	{
 		if (!cvEnabled || !cvShadowDistance)
 		{
-			ThrowAbortException("Cannot tick SpriteShadowThinker due to missing CVar references!");
-			return;
+			// cache the CVars
+			cvEnabled = CVar.GetCVar("spriteshadow_enabled", players[consoleplayer]);
+			cvShadowDistance = CVar.GetCVar("spriteshadow_distance", players[consoleplayer]);
 		}
 
 		// get the currently viewed camera
@@ -325,16 +326,7 @@ class SpriteShadowHandler : EventHandler
 
 	override void WorldLoaded(WorldEvent e)
 	{
-		if (!sst)
-		{
-			sst = new("SpriteShadowThinker");
-			if (sst)
-			{
-				// cache the CVars
-				sst.cvEnabled = CVar.GetCVar("spriteshadow_enabled", players[consoleplayer]);
-				sst.cvShadowDistance = CVar.GetCVar("spriteshadow_distance", players[consoleplayer]);
-			}
-		}
+		if (!sst) sst = new("SpriteShadowThinker");
 	}
 
 	override void WorldUnloaded(WorldEvent e)
