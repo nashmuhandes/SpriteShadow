@@ -195,6 +195,7 @@ class SpriteShadowThinker : Thinker
 	Array<SpriteShadowCaster> shadowCasters;
 	transient CVar cvEnabled;
 	transient CVar cvShadowDistance;
+	bool isSavingGame;
 
 	override void Tick(void)
 	{
@@ -205,6 +206,12 @@ class SpriteShadowThinker : Thinker
 			{
 				ThrowAbortException("Cannot tick SpriteShadowThinker due to missing CVar references!");
 			}
+		}
+
+		if (isSavingGame)
+		{
+			isSavingGame = false;
+			return;
 		}
 
 		// disable SpriteShadows
@@ -349,6 +356,16 @@ class SpriteShadowHandler : EventHandler
 		if (sst)
 		{
 			sst.DoDestroy();
+		}
+	}
+
+	override void WorldTick(void)
+	{
+		// do not serialize shadows
+		if (gameaction == ga_savegame || gameaction == ga_autosave)
+		{
+			sst.isSavingGame = true;
+			sst.DestroySpriteShadows();
 		}
 	}
 }
