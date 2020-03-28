@@ -200,9 +200,11 @@ class SpriteShadowThinker : Thinker
 	{
 		if (!cvEnabled || !cvShadowDistance)
 		{
-			// cache the CVars
-			cvEnabled = CVar.GetCVar("spriteshadow_enabled", players[consoleplayer]);
-			cvShadowDistance = CVar.GetCVar("spriteshadow_distance", players[consoleplayer]);
+			if (!(cvEnabled = CVar.GetCVar("spriteshadow_enabled", players[consoleplayer])) ||
+				!(cvShadowDistance = CVar.GetCVar("spriteshadow_distance", players[consoleplayer])))
+			{
+				ThrowAbortException("Cannot tick SpriteShadowThinker due to missing CVar references!");
+			}
 		}
 
 		// disable SpriteShadows
