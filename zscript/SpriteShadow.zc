@@ -197,6 +197,12 @@ class SpriteShadowThinker : Thinker
 	transient CVar cvShadowDistance;
 	bool isSavingGame;
 
+	// Never enable shadows on these actors
+	Array<String> blacklistedActors;
+
+	// Always enable shadows on these actors
+	Array<String> whiteListedActors;
+
 	override void Tick(void)
 	{
 		if (!cvEnabled || !cvShadowDistance)
@@ -234,15 +240,36 @@ class SpriteShadowThinker : Thinker
 			// use (distance - 1) so that it stays within the BlockThingsIterator's range
 			if ((other.Distance3D(camera) - 1.0) < cvShadowDistance.GetFloat())
 			{
-				// currently qualify only monsters and players
-				// to do: implement some kind of actor black/whitelist system
+				// check the whitelist
+				bool whitelisted = false;
+				for (int l = 0; l < whiteListedActors.Size(); l++)
+				{
+					if (other.GetClassName() == whiteListedActors[l])
+					{
+						whitelisted = true;
+						break;
+					}
+				}
+
+				// check the blacklist
+				bool blacklisted = false;
+				for (int l = 0; l < blacklistedActors.Size(); l++)
+				{
+					if (other.GetClassName() == blacklistedActors[l])
+					{
+						blacklisted = true;
+						break;
+					}
+				}
+
 				bool valid =
 				(
 					other.bIsMonster ||
-					other is "PlayerPawn"
+					other is "PlayerPawn" ||
+					whitelisted
 				);
 
-				if (!valid) continue;
+				if (!valid || blacklisted) continue;
 
 				// prevent duplicate entries in the array
 				bool isDuplicate = false;
@@ -299,6 +326,62 @@ class SpriteShadowThinker : Thinker
 		}
 	}
 
+	void BuildLists(void)
+	{
+		blacklistedActors.Clear();
+		whiteListedActors.Clear();
+
+		for (int z = 0; z < 2; z++)
+		{
+			name lumpName;
+			if (z == 0) lumpName = 'SHADOW_X';
+			else if (z == 1) lumpName = 'SHADOW_O';
+
+			int lump = -1;
+			while (-1 != (lump = Wads.FindLump(lumpName, lump + 1)))
+			{
+				String data = Wads.ReadLump(lump);
+
+				// split lines
+				Array<String> lines;
+				lines.Clear();
+				data.Split(lines, "\n", TOK_KEEPEMPTY);
+
+				// strip comments
+				for (int i = 0; i < lines.Size(); i++)
+				{
+					if (lines[i].IndexOf("//") == 0)
+					{
+						continue;
+					}
+					else
+					{
+						if (lumpName == 'SHADOW_X')
+							blacklistedActors.Push(lines[i]);
+						else if (lumpName == 'SHADOW_O')
+							whiteListedActors.Push(lines[i]);
+					}
+				}
+			}
+
+			// delete that weird character that gets added at the end
+			if (lumpName == 'SHADOW_X')
+			{
+				for (int i = 0; i < blacklistedActors.Size(); i++)
+				{
+					blacklistedActors[i].Truncate(blacklistedActors[i].Length() - 1);
+				}
+			}
+			else if (lumpName == 'SHADOW_O')
+			{
+				for (int i = 0; i < whiteListedActors.Size(); i++)
+				{
+					whiteListedActors[i].Truncate(whiteListedActors[i].Length() - 1);
+				}
+			}
+		}
+	}
+
 	void AddSpriteShadowCaster(Actor mo)
 	{
 		let sc = new("SpriteShadowCaster");
@@ -349,6 +432,7 @@ class SpriteShadowHandler : EventHandler
 	override void WorldLoaded(WorldEvent e)
 	{
 		if (!sst) sst = new("SpriteShadowThinker");
+		sst.BuildLists();
 	}
 
 	override void WorldUnloaded(WorldEvent e)
