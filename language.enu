@@ -6,5 +6,4 @@ SPRITESHADOWMNU_ENABLED = "Enabled";
 SPRITESHADOWMNU_MAXSHADOWDISTANCE = "Max Shadow Distance";
 SPRITESHADOWMNU_MAXSHADOWS = "Max Shadows";
 SPRITESHADOWMNU_HELPTEXT_ENABLED = "Enables sprite shadows. Changes will take effect upon closing the menu or unpausing the game.";
-SPRITESHADOWMNU_HELPTEXT_MAXSHADOWDISTANCE = "Maximum distance to show shadows beneath Actors.";
-SPRITESHADOWMNU_HELPTEXT_MAXSHADOWS = "Maximum number of shadows to show (regardless of distance).";
+SPRITESHADOWMNU_HELPTEXT_MAXSHADOWDISTANCE = "Maximum sprite shadow draw distance. Higher values may affect performance.";
