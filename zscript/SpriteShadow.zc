@@ -276,12 +276,11 @@ class SpriteShadowThinker : Thinker
 				// prevent duplicate entries in the array
 				bool isDuplicate = false;
 				int i = 0;
-				for (i = 0; i < shadowCasters.Size(); i++)
+				for (i = 0; i < shadowCasters.Size() && !isDuplicate; i++)
 				{
 					if (shadowCasters[i] && shadowCasters[i].mo == other)
 					{
 						isDuplicate = true;
-						break;
 					}
 				}
 
