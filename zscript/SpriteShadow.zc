@@ -284,7 +284,8 @@ class SpriteShadowThinker : Thinker
 
 			// shadow caster is close
 			// use (distance - 1) so that it stays within the BlockThingsIterator's range
-			if ((other.Distance3D(camera) - 1.0) < shadowDistance)
+			bool isClose = abs(other.Pos.X - it.Position.X) < (shadowDistance - 1.0) && abs(other.Pos.Y - it.Position.Y) < (shadowDistance - 1.0);
+			if (isClose)
 			{
 				// prevent duplicate entries in the array
 				bool isDuplicate = false;
