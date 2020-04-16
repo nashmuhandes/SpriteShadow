@@ -235,6 +235,7 @@ class SpriteShadowThinker : Thinker
 		while (it.Next())
 		{
 			let other = it.Thing;
+			if (!other) continue;
 
 			// shadow caster is close
 			// use (distance - 1) so that it stays within the BlockThingsIterator's range
