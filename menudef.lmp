@@ -13,5 +13,5 @@ OptionMenu "SpriteShadowMenu"
 
 	StaticText ""
 	SpriteShadowOption		"$SPRITESHADOWMNU_ENABLED",				"$SPRITESHADOWMNU_HELPTEXT_ENABLED",			"spriteshadow_enabled",		"YesNo"
-	SpriteShadowSlider		"$SPRITESHADOWMNU_MAXSHADOWDISTANCE",	"$SPRITESHADOWMNU_HELPTEXT_MAXSHADOWDISTANCE",	"spriteshadow_distance",	0, 10000, 1, 0
+	SpriteShadowSlider		"$SPRITESHADOWMNU_MAXSHADOWDISTANCE",	"$SPRITESHADOWMNU_HELPTEXT_MAXSHADOWDISTANCE",	"spriteshadow_distance",	256, 8192, 8, 0
 }
