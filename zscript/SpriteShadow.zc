@@ -288,32 +288,12 @@ class SpriteShadowThinker : Thinker
 				if (!isDuplicate)
 				{
 					AddSpriteShadowCaster(other);
-
-					// create the shadow actor
-					if (!shadowCasters[i].hasShadow)
-					{
-						let shadow = SpriteShadow(Actor.Spawn("SpriteShadow", shadowCasters[i].mo.Pos, NO_REPLACE));
-						if (shadow)
-						{
-							shadow.caster = shadowCasters[i].mo;
-							shadowCasters[i].shadow = shadow;
-							shadowCasters[i].hasShadow = true;
-						}
-					}
 				}
 			}
 			// shadow caster is too far away
 			else
 			{
-				for (int j = 0; j < shadowCasters.Size(); j++)
-				{
-					if (shadowCasters[j] && shadowCasters[j].mo == other)
-					{
-						if (shadowCasters[j].shadow) shadowCasters[j].shadow.Destroy();
-						shadowCasters.Delete(j);
-						break;
-					}
-				}
+				RemoveSpriteShadowCaster(other);
 			}
 		}
 	}
@@ -380,7 +360,36 @@ class SpriteShadowThinker : Thinker
 		if (sc)
 		{
 			sc.mo = mo;
+
+			// create the shadow actor
+			if (!sc.hasShadow)
+			{
+				let shadow = SpriteShadow(Actor.Spawn("SpriteShadow", sc.mo.Pos, NO_REPLACE));
+				if (shadow)
+				{
+					shadow.caster = sc.mo;
+					sc.shadow = shadow;
+					sc.hasShadow = true;
+				}
+			}
+
 			shadowCasters.Push(sc);
+		}
+	}
+
+	void RemoveSpriteShadowCaster(Actor mo)
+	{
+		for (int i = 0; i < shadowCasters.Size(); i++)
+		{
+			if (shadowCasters[i] && shadowCasters[i].mo == mo)
+			{
+				if (shadowCasters[i].shadow)
+				{
+					shadowCasters[i].shadow.Destroy();
+				}
+				shadowCasters.Delete(i);
+				break;
+			}
 		}
 	}
 
