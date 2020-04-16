@@ -296,6 +296,7 @@ class SpriteShadowThinker : Thinker
 				RemoveSpriteShadowCaster(other);
 			}
 		}
+		//Console.Printf("%d shadows", shadowCasters.Size());
 	}
 
 	void BuildLists(void)
