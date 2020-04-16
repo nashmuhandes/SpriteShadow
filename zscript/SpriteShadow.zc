@@ -237,41 +237,42 @@ class SpriteShadowThinker : Thinker
 			let other = it.Thing;
 			if (!other) continue;
 
+			// check the whitelist
+			bool whitelisted = false;
+			for (int l = 0; l < whiteListedActors.Size(); l++)
+			{
+				if (other.GetClassName() == whiteListedActors[l])
+				{
+					whitelisted = true;
+					break;
+				}
+			}
+
+			// check the blacklist
+			bool blacklisted = false;
+			for (int l = 0; l < blacklistedActors.Size(); l++)
+			{
+				if (other.GetClassName() == blacklistedActors[l])
+				{
+					blacklisted = true;
+					break;
+				}
+			}
+
+			bool valid =
+			(
+				other.bIsMonster ||
+				other is "PlayerPawn" ||
+				whitelisted
+			);
+
+			// actor is invalid, move to the next one
+			if (!valid || blacklisted) continue;
+
 			// shadow caster is close
 			// use (distance - 1) so that it stays within the BlockThingsIterator's range
 			if ((other.Distance3D(camera) - 1.0) < cvShadowDistance.GetFloat())
 			{
-				// check the whitelist
-				bool whitelisted = false;
-				for (int l = 0; l < whiteListedActors.Size(); l++)
-				{
-					if (other.GetClassName() == whiteListedActors[l])
-					{
-						whitelisted = true;
-						break;
-					}
-				}
-
-				// check the blacklist
-				bool blacklisted = false;
-				for (int l = 0; l < blacklistedActors.Size(); l++)
-				{
-					if (other.GetClassName() == blacklistedActors[l])
-					{
-						blacklisted = true;
-						break;
-					}
-				}
-
-				bool valid =
-				(
-					other.bIsMonster ||
-					other is "PlayerPawn" ||
-					whitelisted
-				);
-
-				if (!valid || blacklisted) continue;
-
 				// prevent duplicate entries in the array
 				bool isDuplicate = false;
 				int i = 0;
