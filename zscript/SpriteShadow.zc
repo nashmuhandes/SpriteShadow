@@ -316,15 +316,6 @@ class SpriteShadowThinker : Thinker
 					}
 				}
 			}
-
-			// array cleanup
-			for (int k = 0; k < shadowCasters.Size(); k++)
-			{
-				if (shadowCasters[k] && !shadowCasters[k].shadow)
-				{
-					shadowCasters.Delete(k);
-				}
-			}
 		}
 	}
 
