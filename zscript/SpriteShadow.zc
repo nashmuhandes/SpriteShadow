@@ -96,6 +96,16 @@ class SpriteShadow : Actor
 			Alpha = caster.Alpha * 0.5;
 			Scale.X = caster.Scale.X;
 			Scale.Y = caster.Scale.Y * 0.1;
+			if (caster.GetRenderStyle() == STYLE_OptFuzzy)
+			{
+				A_SetRenderStyle(Alpha, STYLE_OptFuzzy);
+			}
+			else if (caster.GetRenderStyle() == STYLE_Fuzzy)
+			{
+				A_SetRenderStyle(Alpha, STYLE_Fuzzy);
+			}
+			bInvisible = caster.bInvisible;
+			bVisibilityPulse = caster.bVisibilityPulse;
 
 			// Backported FindOnMObj check from Blade of Agony
 			double shadowPosZ = caster.FloorZ;
