@@ -105,8 +105,8 @@ class SpriteShadowMenu : OptionMenu
 		if (tt.Length() > 0)
 		{
 			Screen.DrawText (OptionFont(), OptionMenuSettings.mFontColorValue,
-				(Screen.GetWidth() - OptionFont().StringWidth (tt) * CleanXfac_1) / 2,
-				BigFont.GetHeight() * CleanYfac_1 * 2.5,
+				(Screen.GetWidth() - OptionFont().StringWidth (tt) * CleanXFac_1) / 2,
+				BigFont.GetHeight() * CleanYFac_1 * 2.5,
 				tt,
 				DTA_CleanNoMove_1, true);
 		}
