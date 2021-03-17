@@ -127,11 +127,11 @@ class OptionMenuItemSpriteShadowSafeCommand : OptionMenuItemSafeCommand
 
 //===========================================================================
 //
-// SpriteShadow Menu
+// SpriteShadowOptionMenu
 //
 //===========================================================================
 
-class SpriteShadowMenu : OptionMenu
+class SpriteShadowOptionMenu : OptionMenu
 {
 	const START_TIME = 75;
 	const END_TIME = 120;

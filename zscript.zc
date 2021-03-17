@@ -1,4 +1,4 @@
 version "4.4.2"
 
 #include "zscript/SpriteShadow.zc"
-#include "zscript/SpriteShadowMenu.zc"
+#include "zscript/SpriteShadowOptionMenu.zc"
