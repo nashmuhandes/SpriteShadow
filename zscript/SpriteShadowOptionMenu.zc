@@ -90,10 +90,10 @@ class OptionMenuItemSpriteShadowSlider : OptionMenuItemSlider
 {
 	String mTooltip;
 
-	OptionMenuItemSpriteShadowSlider Init(String label, String tooltip, Name command, double min, double max, double step, int showval = 1)
+	OptionMenuItemSpriteShadowSlider Init(String label, String tooltip, Name command, double min, double max, double step, int showval = 1, CVar graycheck = NULL)
 	{
 		mTooltip = tooltip;
-		Super.Init(label, command, min, max, step, showval);
+		Super.Init(label, command, min, max, step, showval, graycheck);
 		return self;
 	}
 }
