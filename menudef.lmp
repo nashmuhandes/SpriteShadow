@@ -1,8 +1,15 @@
 AddOptionMenu "OptionsMenu"
 {
-	StaticText ""
 	StaticText "SpriteShadow v2.0"
 	Submenu "$OPTMNU_SPRITESHADOW", "SpriteShadowOptionMenu"
+	StaticText ""
+}
+
+AddOptionMenu "OptionsMenuSimple"
+{
+	StaticText "SpriteShadow v2.0"
+	Submenu "$OPTMNU_SPRITESHADOW", "SpriteShadowOptionMenu"
+	StaticText ""
 }
 
 OptionMenu "SpriteShadowOptionMenu"
