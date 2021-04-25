@@ -1,2 +1,0 @@
-user bool spriteshadow_enabled = true;
-user int spriteshadow_distance = 2048;

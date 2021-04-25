@@ -1,9 +1,0 @@
-[enu default]
-
-OPTMNU_SPRITESHADOW = "Customize SpriteShadow";
-SPRITESHADOWMNU_TITLE = "SpriteShadow Options";
-SPRITESHADOWMNU_ENABLED = "Enabled";
-SPRITESHADOWMNU_MAXSHADOWDISTANCE = "Max shadow distance";
-SPRITESHADOWMNU_MAXSHADOWS = "Max shadows";
-SPRITESHADOWMNU_HELPTEXT_ENABLED = "Enables sprite shadows. Changes will take effect upon closing the menu or unpausing the game.";
-SPRITESHADOWMNU_HELPTEXT_MAXSHADOWDISTANCE = "Maximum sprite shadow draw distance. Higher values may affect performance.";

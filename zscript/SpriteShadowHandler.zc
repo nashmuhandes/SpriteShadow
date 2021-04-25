@@ -1,0 +1,15 @@
+class SpriteShadowHandler : EventHandler
+{
+	override void WorldThingSpawned(WorldEvent e)
+	{
+		if (!e.Thing) return;
+
+		bool isMonster = e.Thing.bIsmonster;
+		bool isPlayer = (e.Thing is "PlayerPawn");
+
+		if (isMonster || isPlayer)
+		{
+			e.Thing.bCastSpriteShadow = true;
+		}
+	}
+}
